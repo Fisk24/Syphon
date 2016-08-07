@@ -1,6 +1,7 @@
-import json, datetime
+import json, datetime, sys
 
 from bs4 import BeautifulSoup
+from urllib.error   import *
 from urllib.request import urlopen, Request
 
 class Scrapper():
@@ -26,27 +27,14 @@ class Scrapper():
 
     def getAllSinceYesterday(self):
         #self.printIndexResponce()
-        # get todays date and subtract 1 day to get yesterdays date
-        today = datetime.datetime.now()    # this time object represents the exact date and time of when it was created!
-        delta = datetime.timedelta(days=1) # timedeltas are used to objectify amounts of time in terms of dates!
-        yestr = today - delta
-        print(self.responce[0]["created_at"])
-        time = self.responce[0]["created_at"]["s"], self.responce[0]["created_at"]["n"]
-        post = datetime.datetime.fromtimestamp(float("{s}.{n}".format(s=time[0], n=time[1])))
-        print(post)
-        print(self.responce[0]["file_url"])
-
-        print(yestr < post)
-        self.getAllSinceDate(date=yestr)
+        date = datetime.date.today()
+        print(date)
+        print("------{num} posts------".format(num=len(self.responce)))
+        self.getAllSinceDate(date="")
 
     def getAllSinceDate(self, date):
-        posts = []
         for post in self.responce:
-            jsonDate = post["created_at"]["s"], post["created_at"]["n"]
-            postDate = datetime.datetime.fromtimestamp(float("{s}.{n}".format(s=jsonDate[0], n=jsonDate[1])))
-            if postDate > date:
-                posts.append({})
-                
+            pass
     
     def printIndexResponce(self):
         print("------{num} posts------".format(num=len(self.responce)))
@@ -58,32 +46,49 @@ class Scrapper():
         print("------{num} posts------".format(num=len(self.responce)))
 
     def printResponce(self):
+        # this function attempts to print out the contents of the JSON responce object returned by self.getJsonData()
+        # in a legible format.
         for key in self.responce:
             print(key)
 
     def printData(self):
+        # this function prints out the contents of self.data in a legible format
         for key in self.data:
             print(key, " = ", self.data[key])
 
-    def addPostDataByKey(self):
-        pass
-
     def getPoolInfo(self):
+        # As part of the JSON object returned by self.getJsonData(), there are certain key-value pairs that
+        # contain data about the pool in question. The keys that are belived to be relevent are supplied by
+        # self.dataKeys.
         # Parse self.responce to extract information about the pool
         for key in self.dataKeys:
             self.data[key] = self.responce[key]
 
-    def getPostInfo(self, posts=self.request["posts"]):
+    def getPostInfo(self):
         # this function returns requested values from a list of supplied keys
+        # in the JSON object returned by self.getJsonData(), there is a DICT containing several key-value pairs
+        # when given a list of keys by self.postKeys this functions returns the values associated with those keys
         # example: ["author", "file_url"] would return these key values out of the responce data
+        # this list is stored in the value self.data["posts"]; accesable by the parent class that created this 
+        # scrapper object.
         self.data["posts"] = []
-        for post in posts:                  # for every post in the list of posts
+        for post in self.responce["posts"]: # for every post in the list of posts
             self.data["posts"].append({})   # add an empty dict to the post data; this will serve as a container for the requested data
             for key in self.postKeys:       # then for every key in the list of requested keys
                 self.data["posts"][-1][key] = post[key] # Select the most recently added post data dict, and add the requested key along with its value
         
-    def getJsonData(self, url): 
-        # The modified user agent is not always needed but is a solidly useful precaution!
-        req = Request(url, headers=self.userAgent)
-        x = urlopen(req).read().decode("utf-8")
-        return json.loads(x)
+    def getJsonData(self, url):
+        # This function takes a url and expects to get a JSON responce back from it. If the responce is not in JSON format the function throws an error.
+        try:
+            # The modified user agent is not always needed but is a solidly useful precaution!
+            req = Request(url, headers=self.userAgent)
+            x = urlopen(req).read().decode("utf-8")
+            return json.loads(x)
+        except json.decoder.JSONDecodeError as e:
+            print("RESPONCE WAS NOT IN JSON FORMAT")
+            print(e)
+
+        except URLError as e:
+            print(e)
+            print("Do you have an internet connection?")
+            sys.exit()
